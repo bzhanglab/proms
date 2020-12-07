@@ -117,18 +117,18 @@ optional arguments:
 | target_view             | name of data view where markers will be selected                  | string |
 | target_label            | name of label to predict                                          | string |
 | data                    | description of actual data                                        | object |
-| data:train              | object describing train data                                      | object |
-| data:train:label        | object describing class label information                         | object |
-| data:train:label:file   | name of file with class label information                         | string |
-| data:train:view         | a list of objects describing training omics data type             | array  |
-| data:train:view[i]:type | name of omics data type i                                         | string |
-| data:train:view[i]:file | name of file for omics data type i                                | string |
-| data:test               | object describing test data (optional)                            | object |
-| data:test:label         | pbject describing class label information (optional)              | object |
-| data:test:label:file    | name of file with class label information (optional)              | string |
-| data:test:view          | array of single object describing test omics data type (optional) | array  |
-| data:test:view[0]:type  | name of target omics data type (optional, must match target_view) | string |
-| data:test:view[0]:file  | name of file for target omics data type                           | string |
+| data: train              | object describing train data                                      | object |
+| data: train : label        | object describing class label information                         | object |
+| data: train : label : file   | name of file with class label information                         | string |
+| data: train : view         | a list of objects describing training omics data type             | array  |
+| data: train : view[i] :type | name of omics data type i                                         | string |
+| data: train : view[i] :file | name of file for omics data type i                                | string |
+| data: test               | object describing test data (optional)                            | object |
+| data: test : label         | pbject describing class label information (optional)              | object |
+| data: test : label :file    | name of file with class label information (optional)              | string |
+| data: test : view          | array of single object describing test omics data type (optional) | array  |
+| data: test : view[0] :type  | name of target omics data type (optional, must match target_view) | string |
+| data: test : view[0] :file  | name of file for target omics data type                           | string |
 
 <br/><br/>
 
@@ -147,10 +147,10 @@ proms_predict -m /path/to/saved/full_model.pkl -d predict_data_config
 | data_root               | root directory of data folder relative to the config file         | string |
 | predict_dataset         | path of predict dataset relative to data_root                     | string |
 | data                    | description of actual data                                        | object |
-| data:predict            | object describing predict data                                    | object |
-| data:predict:view       | array of single object describing preidction omics data type      | array  |
-| data:test:view[0]:type  | name of target omics data type (must match training target_view)  | string |
-| data:test:view[0]:file  | name of file for prediction omics data type                       | string |
+| data: predict            | object describing predict data                                    | object |
+| data: predict : view       | array of single object describing preidction omics data type      | array  |
+| data: test : view[0] : type  | name of target omics data type (must match training target_view)  | string |
+| data: test : view[0] : file  | name of file for prediction omics data type                       | string |
 
 <br/><br/>
 
