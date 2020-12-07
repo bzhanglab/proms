@@ -141,7 +141,7 @@ proms_predict -m /path/to/saved/full_model.pkl -d predict_data_config
 `predict_data_config` is a json file with the following schema:
 
 
-| Key                     | Meaning                                                           | Type   |
+| Key                     | Description                                                           | Type   |
 |-------------------------|-------------------------------------------------------------------|--------|
 | name                    | name of the dataset                                               | string |
 | data_root               | root directory of data folder relative to the config file         | string |
@@ -152,12 +152,9 @@ proms_predict -m /path/to/saved/full_model.pkl -d predict_data_config
 | data: test : view[0] : type  | name of target omics data type (must match training target_view)  | string |
 | data: test : view[0] : file  | name of file for prediction omics data type                       | string |
 
-<br/><br/>
-
+<br/>
 
 ### Example: 
-
-<br/>
 
 To test the package, download the dataset from [here](https://zhanglab.s3-us-west-2.amazonaws.com/proms_test.tgz). 
 
