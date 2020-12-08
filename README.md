@@ -156,7 +156,7 @@ proms_predict -m /path/to/saved/full_model.pkl -d predict_data_config
 
 ### Example: 
 
-To test the package, download the dataset from [here](https://zhanglab.s3-us-west-2.amazonaws.com/proms_test.tgz). 
+To test the package, download a sample dataset from [here](https://zhanglab.s3-us-west-2.amazonaws.com/proms_test.tgz). 
 
 
 ```console
