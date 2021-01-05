@@ -38,7 +38,7 @@ To further reduce the redundancy among the remaining features,
 The <img src="https://raw.githubusercontent.com/bzhanglab/proms/main/docs/svgs/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode" align=middle width=9.075367949999992pt height=22.831056599999986pt/> medoids from each cluster are selected as markers.
 The whole process is illustrated in the following diagram:
 
-<center><img src="https://github.com/bzhanglab/proms/blob/main/docs/proms.png" alt="proms" height="800"/></center>
+<center><img src="https://raw.githubusercontent.com/bzhanglab/proms/main/docs/proms.png" alt="proms" height="800"/></center>
 
 
 ### ProMS_mo: Protein marker selection with multi-omics data
@@ -66,7 +66,7 @@ and keeps only the top <img src="https://raw.githubusercontent.com/bzhanglab/pro
  medoids are selected as the final protein markers for training a classifier.
 The steps are depicted in the following diagram:
 
-<center><img src="https://github.com/bzhanglab/proms/blob/main/docs/proms_mo.png" alt="proms" height="800"/></center>
+<center><img src="https://raw.githubusercontent.com/bzhanglab/proms/main/docs/proms_mo.png" alt="proms" height="800"/></center>
 
 ## How to use the package
 
