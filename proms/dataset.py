@@ -92,21 +92,24 @@ class Dataset(Data):
         if self.has_test:
             test_dataset = self.config['test_dataset']
             all_test_views = self.config['data'][test_dataset]['view']
-            test_clin_file = self.config['data'][test_dataset]['label']['file']
-            test_clin_file = os.path.join(self.root, test_dataset, test_clin_file)
-            test_clin_data = pd.read_csv(test_clin_file, sep='\t', index_col=0)
+            if 'label' in self.config['data'][test_dataset]:
+                test_clin_file = self.config['data'][test_dataset]['label']['file']
+                test_clin_file = os.path.join(self.root, test_dataset, test_clin_file)
+                test_clin_data = pd.read_csv(test_clin_file, sep='\t', index_col=0)
+                test_samples = test_clin_data.index
+                # samples X phenotype
+                test_clin_data = test_clin_data.loc[:, [target_label]]
+                label_val = sorted(np.unique(test_clin_data.iloc[:, 0].values))
+                assert label_val == [0, 1], 'label can only be 0 or 1'
+                y_final_test_2 = test_clin_data
+            else:
+                test_samples = None
+                y_final_test_2 = None
             selected_view = filter(lambda view: view['type'] == target_view,
                                    all_test_views)
             test_view_file = list(selected_view)[0]['file']
             test_view_file = os.path.join(self.root, test_dataset, test_view_file)
-            test_samples = test_clin_data.index
-            X_final_test_2 = self.load_data(test_view_file, test_samples,
-                                            vis=True)
-            # samples X phenotype
-            test_clin_data = test_clin_data.loc[:, [target_label]]
-            label_val = sorted(np.unique(test_clin_data.iloc[:, 0].values))
-            assert label_val == [0, 1], 'label can only be 0 or 1'
-            y_final_test_2 = test_clin_data
+            X_final_test_2 = self.load_data(test_view_file, test_samples)
         else:
             X_final_test_2 = None
             y_final_test_2 = None
@@ -130,7 +133,7 @@ class Dataset(Data):
             print(f'view: {view_name}')
             view_file = os.path.join(self.root, train_dataset,
                                      all_views[i]['file'])
-            X = self.load_data(view_file, train_sample, vis=True)
+            X = self.load_data(view_file, train_sample)
             if view_name == target_view:
                 if self.has_test:
                     # find out common features in the two data
@@ -157,7 +160,10 @@ class Dataset(Data):
 
         if self.has_test:
             all_data_['X_test'] = X_final_test_2
-            print('test sample size: {}'.format(all_data_['y_test'].shape[0]))
+            if all_data_['y_test'] is not None:
+                print('test sample size: {}'.format(all_data_['y_test'].shape[0]))
+            else:
+                print('test sample size: {}'.format(all_data_['X_test'].shape[0]))
 
         self.all_data = all_data_
         self.save_data()

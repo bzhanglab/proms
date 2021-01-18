@@ -93,14 +93,15 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
         test_acc = accuracy_score(y_test.to_numpy().squeeze(), pred_label)
 
     if X_test_2 is not None:
-        label_2 = ','.join(map(str, y_test_2.to_numpy().squeeze()))
         pred_prob_2 = grid.predict_proba(X_test_2)[:, 1]
         pred_label_2 = [1 if x >= 0.5 else 0 for x in pred_prob_2]
-        test_score_2 = round(grid.score(X_test_2, y_test_2.values.ravel()), 4)
         pred_prob_s_2 = ','.join(map('{:.4f}'.format, pred_prob_2))
         pred_label_s_2 = ','.join(map(str, pred_label_2))
-        test_acc_2 = round(accuracy_score(y_test_2.to_numpy().squeeze(),
-                        pred_label_2), 4)
+        if y_test_2 is not None:
+            label_2 = ','.join(map(str, y_test_2.to_numpy().squeeze()))
+            test_score_2 = round(grid.score(X_test_2, y_test_2.values.ravel()), 4)
+            test_acc_2 = round(accuracy_score(y_test_2.to_numpy().squeeze(),
+                            pred_label_2), 4)
 
     # best_percentile = grid.best_params_['featureselector__percentile']
     best_fs = grid.best_estimator_.named_steps['featureselector']
@@ -118,17 +119,27 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
     omics_type = 'so' if fs_method == 'proms' else 'mo'
     if mode == 'eval':
         res = [fs_method, omics_type, k,
-               estimator, label, pred_prob_s,
-               pred_label_s, round(test_acc, 4), round(test_score, 4)]
+               estimator, repeat, pred_prob_s,
+               pred_label_s, label, round(test_acc, 4), round(test_score, 4)]
         print(f'acc:{round(test_acc, 4)}, auroc:{round(test_score, 4)}')
         return res
     elif mode == 'full':
         s_features = ','.join(selected_features)
-        res = [fs_method, omics_type, k, estimator,
-               s_features, json.dumps(cluster_membership), -1, -1,
-               label_2, pred_prob_s_2, pred_label_s_2,
-               test_acc_2, test_score_2]
-        print(f'acc:{test_acc_2}, auroc:{test_score_2}')
+        if data['test_2']['X'] is not None:
+            if data['test_2']['y'] is not None:
+                res = [fs_method, omics_type, k, estimator,
+                    s_features, json.dumps(cluster_membership), -1, -1,
+                    pred_prob_s_2, pred_label_s_2,
+                    label_2, test_acc_2, test_score_2]
+                print(f'acc:{test_acc_2}, auroc:{test_score_2}')
+            else:
+                res = [fs_method, omics_type, k, estimator,
+                    s_features, json.dumps(cluster_membership), -1, -1,
+                    pred_prob_s_2, pred_label_s_2]
+        else:
+            res = [fs_method, omics_type, k, estimator,
+                s_features, json.dumps(cluster_membership), -1, -1]
+
         return res
 
 
@@ -252,9 +263,9 @@ def run_fs(all_data, run_config, run_version, output_root, seed):
 
     # evaluate: performance evaluation, select features with
     #           model built with train set and evaluate in validation set
-    column_names = ['fs', 'type', 'k', 'classifier',
-                    'val_label', 'val_score', 'val_pred_label',
-                    'val_acc', 'val_auroc']
+    column_names = ['fs', 'type', 'k', 'classifier', 'repeat',
+                    'val_score', 'val_pred_label',
+                    'val_label', 'val_acc', 'val_auroc']
     out_dir_run = os.path.join(output_root, run_version)
     res = []
     for cur_k in k:
@@ -284,11 +295,22 @@ def run_fs(all_data, run_config, run_version, output_root, seed):
 
     # # full: build full model with all data and test in another
     # #       indpendent data set if available
-    column_names = ['fs', 'type', 'k', 'classifier',
-                    'features', 'membership',
-                    'avg_val_acc', 'avg_val_auroc',
-                    'test_label', 'test_score', 'test_pred_label',
-                    'test_accuracy', 'test_auroc']
+    if all_data['desc']['has_test']:
+        if all_data['y_test'] is not None:
+            column_names = ['fs', 'type', 'k', 'classifier',
+                            'features', 'membership',
+                            'avg_val_acc', 'avg_val_auroc',
+                            'test_score', 'test_pred_label', 'test_label',
+                            'test_accuracy', 'test_auroc']
+        else:
+            column_names = ['fs', 'type', 'k', 'classifier',
+                            'features', 'membership',
+                            'avg_val_acc', 'avg_val_auroc',
+                            'test_score', 'test_pred_label']
+    else:
+        column_names = ['fs', 'type', 'k', 'classifier',
+                        'features', 'membership',
+                        'avg_val_acc', 'avg_val_auroc']
     # re-define run_config file
     run_config['repeat'] = 1
     run_config['k'] = [k_sel]
