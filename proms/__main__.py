@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import json
+import csv
 from datetime import datetime
 from tempfile import mkdtemp
 from shutil import rmtree
@@ -327,7 +328,7 @@ def run_fs(all_data, run_config, run_version, output_root, seed):
     out_file = dataset_name + '_results_'
     out_file = out_file + run_version + '_full.tsv'
     out_file = os.path.join(out_dir_run, out_file)
-    results_df.to_csv(out_file, header=True, sep='\t', index=False)
+    results_df.to_csv(out_file, header=True, sep='\t', index=False, quoting=csv.QUOTE_NONE)
 
 
 def check_data_config(config_file):
