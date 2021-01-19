@@ -3,7 +3,6 @@
 ## Contents
 
 - [ProMS: protein marker selection using proteomics or multi-omics data](#proms-protein-marker-selection-using-proteomics-or-multi-omics-data)
-  - [Contents](#contents)
   - [Installation](#installation)
   - [Algorithms](#algorithms)
     - [ProMS: Protein marker selection with proteomics data alone](#proms-protein-marker-selection-with-proteomics-data-alone)
