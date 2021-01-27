@@ -1,9 +1,11 @@
 import os
+import sys
+import re
+import tempfile
 import json
 import pandas as pd
 import argparse
 import pickle
-from sklearn.model_selection import train_test_split
 from proms import Data
 
 class Dataset(Data):
@@ -29,7 +31,7 @@ class Dataset(Data):
         for i in range(n_views):
             view_name = all_views[i]['type']
             print(f'view: {view_name}')
-            view_file = os.path.join(self.root, predict_dataset,
+            view_file = os.path.join(self.root, 
                                      all_views[i]['file'])
             X = self.load_data(view_file, None, vis=False)
 
@@ -40,6 +42,17 @@ class Dataset(Data):
 
         self.all_data = all_data_
         return all_data_
+
+
+def verify_features(saved_model, target_view, predict_data_file):
+    selected_features = saved_model[0].selected_features
+    # remove prefix 
+    s_features = [re.sub(r'^' + target_view + r'_', '', i) for i in selected_features]
+    X = pd.read_csv(predict_data_file, sep='\t', index_col=0)
+    provided = list(X.index)
+    missing_features = list(set(s_features).difference(set(provided)))
+    ret_status = True if len(missing_features) == 0 else False
+    return s_features, missing_features, ret_status
 
 
 def prepare_data(all_data):
@@ -65,7 +78,6 @@ def prepare_data(all_data):
 
 def create_dataset(config_file, output_run=None):
     """ create data structure from input data files """
-    print(f'data config file: {config_file}')
     with open(config_file) as config_fh:
         data_config = json.load(config_fh)
         data_root = data_config['data_root']
@@ -83,12 +95,44 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
     model_file = args.saved_model_file
-    data_config_file = args.data_config_file
+    data_file = args.data_file
 
     with open(model_file, 'rb') as m_fh:
         saved_model = pickle.load(m_fh)
 
-    all_data = create_dataset(data_config_file)
+    target_view = saved_model[0].target_view
+    # required features not provided
+    required_features, missing_features, ret_status = \
+        verify_features(saved_model, target_view, data_file)
+    if not ret_status:
+        print('selected features not provided in data file')
+        print(f'required features: {required_features}')
+        print(f'missing features: {missing_features}')
+        sys.exit(-1)
+
+    # create a config file internally
+    # user only need to provide a tsv data file
+    temp = tempfile.NamedTemporaryFile(suffix='.json')
+    config_dict = {
+        'name': 'predict_dataset',
+        'data_root': os.path.dirname(data_file),
+        'predict_dataset': 'predict',
+        'data': {
+            'predict': {
+                'view': [
+                    {
+                        'type': target_view,
+                        'file': os.path.basename(data_file)
+                    }
+                ]
+            }
+        }
+    }
+
+    with open(temp.name, 'w') as fh:
+        json.dump(config_dict, fh)
+
+    all_data = create_dataset(temp.name)
     data = prepare_data(all_data)
 
     X_train_combined = None
@@ -99,6 +143,7 @@ def main():
                                      axis=1)
     pred_prob = saved_model.predict_proba(X_train_combined)[:,1]
     pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
+    temp.close()
     print(f'predicted probability: {pred_prob}')
     print(f'predicted label: {pred_label}')
 
@@ -121,10 +166,10 @@ def get_parser():
                         help='saved model pickle file',
                         metavar='FILE',
                         )
-    parser.add_argument('-d', '--data', dest='data_config_file',
+    parser.add_argument('-d', '--data', dest='data_file',
                         type=is_valid_file,
                         required=True,
-                        help='configuration file for data set',
+                        help='tsv data file',
                         metavar='FILE',
                         )
     return parser
