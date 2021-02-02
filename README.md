@@ -3,6 +3,7 @@
 ## Contents
 
 - [ProMS: protein marker selection using proteomics or multi-omics data](#proms-protein-marker-selection-using-proteomics-or-multi-omics-data)
+  - [Contents](#contents)
   - [Installation](#installation)
   - [Algorithms](#algorithms)
     - [ProMS: Protein marker selection with proteomics data alone](#proms-protein-marker-selection-with-proteomics-data-alone)
@@ -291,9 +292,8 @@ To test the package, download a sample dataset from [here](https://zhanglab.s3-u
 ```console
 tar xvfz proms_test.tgz
 cd proms_test
-proms_train -f ./test/run_config.json -d ./data/crc.json 2>proms.log
+proms_train -f ./test/run_config.json -d ./data/crc.json 
 ```
-Here we redirect all outputs other than stdout to a log file.
 
 The cross validation results will be created as:
 `[TIME_STAMP]` is the time stamp when the program started. By default, this 

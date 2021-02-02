@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import sys
 import json
 import matplotlib.pyplot as plt
 import pickle
@@ -31,6 +32,9 @@ class Data(object):
     def load_data(self, data_file, samples, vis=False):
         # load feature data
         X = pd.read_csv(data_file, sep='\t', index_col=0)
+        # remove features with missing values
+        X.dropna(axis=0, inplace=True)
+
         # if there are duplicated rows (genes), take the row average
         X = X.groupby(X.index).mean()
         # sample x features
@@ -50,8 +54,6 @@ class Data(object):
                           format='pdf')
 
         X.sort_index(inplace=True)
-        # remove features with missing values
-        X.dropna(axis=1, inplace=True)
         return X
 
     def save_data(self):

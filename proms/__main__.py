@@ -1,11 +1,11 @@
 import multiprocessing
+import warnings
 import os
 import json
 import csv
 from datetime import datetime
 from tempfile import mkdtemp
 from shutil import rmtree
-from numpy.lib.npyio import save
 import pandas as pd
 import argparse
 import pickle
@@ -21,6 +21,7 @@ from sklearn.pipeline import Pipeline
 from joblib import Memory
 from proms import Dataset, FeatureSelector
 
+# ignore warnings from joblib
 
 def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
                          mode, seed):
@@ -400,6 +401,9 @@ def check_run_config(run_config_file, n_train_sample):
 
 
 def main():
+    # ignore warnings from joblib
+    warnings.filterwarnings('ignore')
+    os.environ['PYTHONWARNINGS'] = 'ignore'
     parser = get_parser()
     args = parser.parse_args()
     run_config_file = args.run_config_file
