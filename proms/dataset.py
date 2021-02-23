@@ -1,16 +1,18 @@
 import numpy as np
 import pandas as pd
 import os
-import sys
+from sklearn import preprocessing
 import json
 import matplotlib.pyplot as plt
 import pickle
+import re
+from proms import config
 
 
 class Data(object):
     """Base class for data set"""
 
-    def __init__(self, name, root, config_file, output_dir=None):
+    def __init__(self, name, root, config_file, output_dir):
         self.name = name
         self.root = root
         self.all_data = None
@@ -24,10 +26,7 @@ class Data(object):
 
     def has_test_set(self):
         """ does the dataset contain independent test set """
-        if 'test_dataset' in self.config:
-            return True
-        else:
-            return False
+        return 'test_dataset' in self.config
 
     def load_data(self, data_file, samples, vis=False):
         # load feature data
@@ -57,6 +56,7 @@ class Data(object):
         return X
 
     def save_data(self):
+        """save all data into a file"""
         if self.output_dir is not None:
             fname = self.name + '_all_data.pkl'
             with open(os.path.join(self.output_dir, fname), 'wb') as fh:
@@ -65,6 +65,49 @@ class Data(object):
 
 class Dataset(Data):
     """ data set"""
+    def __init__(self, name, root, config_file, output_dir=None):
+        self.clin_data = None
+        self.prediction_type = None
+        # only valid for classification
+        self.classes = None
+        super().__init__(name, root, config_file, output_dir)
+
+    def check_prediction_type(self):
+        """
+        Based on the target data, infer if it is a
+        regression, classification or survival analysis task
+        """
+        if self.clin_data is None:
+            return None
+      
+        target_vals = self.clin_data.iloc[:,0].values
+        target_dtype = target_vals.dtype
+        # for classification, binary only
+        if target_dtype == np.int64:
+            uniq_len = len(np.unique(target_vals))
+            if uniq_len == 2:
+                return config.prediction_map['classification']
+            if uniq_len > 2:
+                return config.prediction_map['regression']
+            raise ValueError('all target values are the same')
+
+        if target_dtype == np.float64:
+            return config.prediction_map['regression']
+
+        if target_dtype == np.object:
+            target_vals_str = target_vals.astype(str)
+            r_surv = re.compile('.+,.+')
+            if all(r_surv.match(item) for item in list(target_vals_str)):
+                return config.prediction_map['survival']
+            uniq_len = len(np.unique(target_vals_str))
+            if uniq_len == 2:
+                return config.prediction_map['classification']
+            if uniq_len > 2:
+                raise ValueError('multiclass classification not supported')
+            raise ValueError('all target values are the same')
+
+        raise ValueError('wrong target values')
+
 
     def __call__(self):
         print('processing data ...')
@@ -78,10 +121,18 @@ class Dataset(Data):
         clin_data = pd.read_csv(clin_file, sep='\t', index_col=0)
         # samples X phenotype
         clin_data = clin_data.loc[:, [target_label]]
+        self.clin_data = clin_data
+        self.prediction_type = self.check_prediction_type()
         train_sample = clin_data.index
-        # must be binary value (0 or 1)
-        label_val = sorted(np.unique(clin_data.iloc[:, 0].values))
-        assert label_val == [0, 1], 'label can only be 0 or 1'
+        # for now: must be two-class classification
+        if self.prediction_type == config.prediction_map['classification']:
+            le = preprocessing.LabelEncoder()
+            clin_vals = clin_data.iloc[:, 0].values
+            le.fit(clin_vals)
+            self.classes = le.classes_
+            clin_data.iloc[:, 0] = le.transform(clin_vals)
+            self.clin_data = clin_data
+
         y = clin_data
 
         # get the name of samples that have all the omics data available
@@ -101,10 +152,17 @@ class Dataset(Data):
                 test_samples = test_clin_data.index
                 # samples X phenotype
                 test_clin_data = test_clin_data.loc[:, [target_label]]
-                label_val = sorted(np.unique(test_clin_data.iloc[:, 0].values))
-                assert label_val == [0, 1], 'label can only be 0 or 1'
+                if self.prediction_type == config.prediction_map['classification']:
+                    le = preprocessing.LabelEncoder()
+                    test_clin_vals = test_clin_data.iloc[:, 0].values
+                    le.fit(test_clin_vals)
+                    if any(le.classes_ != self.classes):
+                        raise ValueError('class label in test dataset not'
+                            ' matching training data')
+                    test_clin_data.iloc[:, 0] = le.transform(test_clin_vals)
                 y_final_test_2 = test_clin_data
             else:
+                # no label provided, only for prediction
                 test_samples = None
                 y_final_test_2 = None
             selected_view = filter(lambda view: view['type'] == target_view,
@@ -117,6 +175,7 @@ class Dataset(Data):
             y_final_test_2 = None
 
         all_data_ = {'desc': {
+                        'prediction_type': self.prediction_type,
                         'name': self.name,
                         'has_test': self.has_test,
                         'target_label': target_label,

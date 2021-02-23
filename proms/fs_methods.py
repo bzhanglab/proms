@@ -2,10 +2,9 @@ import numpy as np
 import pandas as pd
 import re
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.feature_selection import f_classif
 from .k_medoids import KMedoids
 from .utils import sym_auc_score
-from sklearn.feature_selection import f_classif
+from sklearn.feature_selection import f_classif, mutual_info_regression
 from sklearn.feature_selection import SelectPercentile
 import warnings
 from sklearn.feature_selection._univariate_selection import _BaseFilter
@@ -19,7 +18,7 @@ class SelectMinScore(_BaseFilter):
     """
 
     def __init__(self, score_func=f_classif, min_score=0.5):
-        super(SelectMinScore, self).__init__(score_func)
+        super().__init__(score_func)
         self.min_score = min_score
         self.score_func = score_func
 
@@ -43,7 +42,8 @@ class SelectMinScore(_BaseFilter):
 
 class FeatureSelector(BaseEstimator, TransformerMixin):
     def __init__(self, views, target_view, method, k=3,
-                 weighted=False, percentile=1):
+                 weighted=False, prediction_type='cls',
+                 percentile=1):
         self.views = views
         self.target_view = target_view
         self.method = method
@@ -51,12 +51,16 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         self.k = k
         self.weighted = weighted
         self.percentile = percentile
+        self.prediction_type = prediction_type
         self.cluster_membership = None
         self.selected_features = None
         self.data = {}
         self.support = {}
     
     def get_filter_mode(self):
+        """
+         single or multi omics/view mode
+        """
         if self.method.endswith('_mo'):
             return 'mo'
         return 'so'
@@ -67,15 +71,16 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             # cluster_membership is a dictionary with selected
             # markers as keys
             ret = fs_method(self.data, self.target_view,
-                            self.k, self.weighted)()
+                            self.k, self.get_score_func(), self.weighted)()
             selected_features, cluster_membership = ret
             return (selected_features, cluster_membership)
         else:
             raise ValueError('method {} is not supported'.format(self.method))
 
     def assemble_data(self, X, y=None):
-        ''' X is a combined multi-view data frame
-        '''
+        """
+         X is a combined multi-view data frame
+        """
         for view in self.views:
             # find features in each view
             ptn = re.compile(r'^{}_'.format(view))
@@ -85,7 +90,16 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             self.data[view] = {}
             self.data[view]['X'] = cur_X
             self.data[view]['y'] = y
-
+    
+    def get_score_func(self):
+        score_func = {
+            'cls': sym_auc_score,
+            'reg': mutual_info_regression,
+            # FIXME:
+            'sur': None
+        }
+        return score_func[self.prediction_type]
+    
     def single_view_prefilter(self, X, y=None):
         view = self.views[0]
         if view != self.target_view:
@@ -94,7 +108,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         cur_view_features = [i for i in self.all_features
                              if ptn.match(i)]
         cur_X = X.loc[:, cur_view_features]
-        selector1 = SelectPercentile(sym_auc_score,
+        selector1 = SelectPercentile(self.get_score_func(),
                                      percentile=self.percentile)
         selector1.fit(cur_X, y)
         support = selector1.get_support()
@@ -112,7 +126,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         cur_view_features = [i for i in self.all_features
                              if ptn.match(i)]
         cur_X = X.loc[:, cur_view_features]
-        selector1 = SelectPercentile(sym_auc_score,
+        selector1 = SelectPercentile(self.get_score_func(),
                                      percentile=self.percentile)
         selector1.fit(cur_X, y)
         # find the score cutoff
@@ -130,7 +144,10 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             cur_view_features = [i for i in self.all_features
                                  if ptn.match(i)]
             cur_X = X.loc[:, cur_view_features]
-            selector1 = SelectMinScore(score_func=sym_auc_score,
+            # FIXME:
+            #  if score func is mutual_info_regression,
+            #  we need to normalize it to [0,1]
+            selector1 = SelectMinScore(score_func=self.get_score_func(),
                                        min_score=cutoff)
             selector1.fit(cur_X, y)
             support = selector1.get_support()
@@ -186,7 +203,7 @@ class FeatureSelBase(object):
         if len_features <= k:
             warnings.warn(warn_msg)
 
-    def compute_feature_score(self, X, y, score_func=sym_auc_score):
+    def compute_feature_score(self, X, y, score_func):
         score_func_ret = score_func(X, y)
         if isinstance(score_func_ret, (list, tuple)):
             scores_, pvalues_ = score_func_ret
@@ -201,8 +218,9 @@ class FeatureSelBase(object):
 class ProMS(FeatureSelBase):
     """ProMS single view"""
     def __init__(self, all_view_data, target_view_name, k,
-                 weighted=True):
+                 score_func, weighted=True):
         self.weighted = weighted
+        self.score_func = score_func
         super().__init__('sv', all_view_data, target_view_name, k)
 
     def __call__(self):
@@ -215,7 +233,7 @@ class ProMS(FeatureSelBase):
         self.check_enough_feature(X, self.k)
 
         if self.weighted:
-            feature_scores = self.compute_feature_score(X, y)
+            feature_scores = self.compute_feature_score(X, y, self.score_func)
 
         all_target_feature_names = X.columns.values
         X = X.T
@@ -253,8 +271,9 @@ class ProMS(FeatureSelBase):
 class ProMS_mo(FeatureSelBase):
     """Multiomics ProMS"""
     def __init__(self, all_view_data, target_view_name, k,
-                 weighted=True):
+                 score_func, weighted=True):
         self.weighted = weighted
+        self.score_func = score_func
         super().__init__('mv', all_view_data, target_view_name, k)
 
     def __call__(self):
@@ -282,9 +301,10 @@ class ProMS_mo(FeatureSelBase):
                                        self.target_view_name,
                                        len(cur_features.index))))
             if self.weighted:
-                cur_feature_scores = self.compute_feature_score(X, y)
+                cur_feature_scores = self.compute_feature_score(X, y, 
+                                         self.score_func)
                 feature_scores = np.concatenate((feature_scores,
-                                                cur_feature_scores))
+                                     cur_feature_scores))
 
         all_feature_names = all_X.columns.values
         # feature wise k-medoids clustering

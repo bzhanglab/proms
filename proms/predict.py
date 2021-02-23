@@ -101,6 +101,7 @@ def main():
         saved_model = pickle.load(m_fh)
 
     target_view = saved_model[0].target_view
+    prediction_type = saved_model[0].prediction_type
     # required features not provided
     required_features, missing_features, ret_status = \
         verify_features(saved_model, target_view, data_file)
@@ -134,18 +135,27 @@ def main():
 
     all_data = create_dataset(temp.name)
     data = prepare_data(all_data)
-
+    temp.close()
     X_train_combined = None
     view_names = data['desc']['view_names']
     for view in view_names:
         cur_train = data['train'][view]
         X_train_combined = pd.concat([X_train_combined, cur_train['X']],
                                      axis=1)
-    pred_prob = saved_model.predict_proba(X_train_combined)[:,1]
-    pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
-    temp.close()
-    print(f'predicted probability: {pred_prob}')
-    print(f'predicted label: {pred_label}')
+    if prediction_type == 'cls':
+        pred_prob = saved_model.predict_proba(X_train_combined)[:,1]
+        pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
+        print(f'predicted probability: {pred_prob}')
+        print(f'predicted label: {pred_label}')
+    elif prediction_type == 'reg':
+        pred_val = saved_model.predict(X_train_combined)
+        print(f'predicted values: {pred_val}')
+    elif prediction_type == 'sur':
+        # FIXME:
+        pass
+    else:
+        raise ValueError(f'prediction type {prediction_type} not supported')
+
 
 def is_valid_file(arg):
     """ check if the file exists """
