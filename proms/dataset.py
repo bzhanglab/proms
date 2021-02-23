@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from sklearn import preprocessing
 import json
+import yaml
 import matplotlib.pyplot as plt
 import pickle
 import re
@@ -21,7 +22,7 @@ class Data(object):
             os.makedirs(output_dir)
         config_file = os.path.join(root, config_file)
         with open(config_file) as fh:
-            self.config = json.load(fh)
+            self.config = yaml.load(fh)
         self.has_test = self.has_test_set()
 
     def has_test_set(self):

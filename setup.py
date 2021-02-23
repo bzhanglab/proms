@@ -11,7 +11,7 @@ install_requires = [
     'pandas',
     'xgboost',
     'matplotlib',
-    
+    'pyyaml' 
 ]
 
 

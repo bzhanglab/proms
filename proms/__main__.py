@@ -2,6 +2,7 @@ import multiprocessing
 import warnings
 import os
 import json
+import yaml
 import csv
 from datetime import datetime
 from tempfile import mkdtemp
@@ -544,7 +545,7 @@ def check_data_config(config_file):
     verify data configuration file 
     """
     with open(config_file) as config_fh:
-        data_config = json.load(config_fh)
+        data_config = yaml.load(config_fh)
 
     required_fields = {'name', 'data_root', 'train_dataset', 'target_view',
                        'target_label', 'data'}
@@ -569,7 +570,7 @@ def create_dataset(config_file, output_run):
     print(f'data config file: {config_file}')
     check_data_config(config_file)
     with open(config_file) as config_fh:
-        data_config = json.load(config_fh)
+        data_config = yaml.load(config_fh)
         data_root = data_config['data_root']
         if not os.path.isabs(data_root):
             # relative to the data config file
@@ -583,7 +584,7 @@ def create_dataset(config_file, output_run):
 
 def check_run_config(run_config_file, n_train_sample, prediction_type):
     with open(run_config_file) as config_fh:
-        run_config = json.load(config_fh)
+        run_config = yaml.load(config_fh)
         if not 'n_jobs' in run_config:
             # assume running on a node with 4 cpus
             run_config['n_jobs'] = 4

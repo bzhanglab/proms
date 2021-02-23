@@ -2,7 +2,7 @@ import os
 import sys
 import re
 import tempfile
-import json
+import yaml
 import pandas as pd
 import argparse
 import pickle
@@ -79,7 +79,7 @@ def prepare_data(all_data):
 def create_dataset(config_file, output_run=None):
     """ create data structure from input data files """
     with open(config_file) as config_fh:
-        data_config = json.load(config_fh)
+        data_config = yaml.load(config_fh)
         data_root = data_config['data_root']
         if not os.path.isabs(data_root):
             # relative to the data config file
@@ -113,7 +113,7 @@ def main():
 
     # create a config file internally
     # user only need to provide a tsv data file
-    temp = tempfile.NamedTemporaryFile(suffix='.json')
+    temp = tempfile.NamedTemporaryFile(suffix='.yml')
     config_dict = {
         'name': 'predict_dataset',
         'data_root': os.path.dirname(data_file),
@@ -131,7 +131,7 @@ def main():
     }
 
     with open(temp.name, 'w') as fh:
-        json.dump(config_dict, fh)
+        yaml.dump(config_dict, fh)
 
     all_data = create_dataset(temp.name)
     data = prepare_data(all_data)
