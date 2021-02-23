@@ -96,6 +96,7 @@ def main():
     args = parser.parse_args()
     model_file = args.saved_model_file
     data_file = args.data_file
+    output_file = args.output_file
 
     with open(model_file, 'rb') as m_fh:
         saved_model = pickle.load(m_fh)
@@ -145,16 +146,20 @@ def main():
     if prediction_type == 'cls':
         pred_prob = saved_model.predict_proba(X_train_combined)[:,1]
         pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
-        print(f'predicted probability: {pred_prob}')
-        print(f'predicted label: {pred_label}')
+        with open(output_file, 'w') as fh:
+            print(f'predicted probability:\n{pred_prob}', file=fh)
+            print(f'\npredicted label:\n{pred_label}', file=fh)
     elif prediction_type == 'reg':
         pred_val = saved_model.predict(X_train_combined)
-        print(f'predicted values: {pred_val}')
+        with open(output_file, 'w') as fh:
+            print(f'predicted values:\n{pred_val}', file=fh)
     elif prediction_type == 'sur':
         # FIXME:
         pass
     else:
         raise ValueError(f'prediction type {prediction_type} not supported')
+
+    print(f'{output_file} created.')
 
 
 def is_valid_file(arg):
@@ -174,13 +179,19 @@ def get_parser():
                         type=is_valid_file,
                         required=True,
                         help='saved model pickle file',
-                        metavar='FILE',
+                        metavar='FILE'
                         )
     parser.add_argument('-d', '--data', dest='data_file',
                         type=is_valid_file,
                         required=True,
                         help='tsv data file',
-                        metavar='FILE',
+                        metavar='FILE'
+                        )
+    parser.add_argument('-o', '--output', dest='output_file',
+                        required=False,
+                        default='prediction_output.txt',
+                        help='output file for prediction results',
+                        metavar='FILE'
                         )
     return parser
 
