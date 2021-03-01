@@ -1,10 +1,23 @@
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import check_X_y
 import numpy as np
+import pandas as pd
 import multiprocessing
+from sksurv.metrics import concordance_index_censored
+from sklearn.preprocessing import StandardScaler
 
 
-def _my_auc_score(y_pred, y_true):
+class StandardScalerDf(StandardScaler):
+    """DataFrame Wrapper around StandardScaler"""
+    def __init__(self, copy=True, with_mean=True, with_std=True):
+        super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
+
+    def transform(self, X, copy=None):
+        z = super().transform(X.values)
+        return pd.DataFrame(z, index=X.index, columns=X.columns)
+
+
+def _auc_score(y_pred, y_true):
     return roc_auc_score(y_true, y_pred)
 
 
@@ -66,6 +79,20 @@ def sym_auc_score(X, y):
         The set of auroc scores.
     """
     X, y = check_X_y(X, y, accept_sparse=['csr', 'csc', 'coo'])
-    # scores = parallel_apply_along_axis(_my_auc_score, 0, X, y)
-    scores = np.apply_along_axis(_my_auc_score, 0, X, y)
+    scores = np.apply_along_axis(_auc_score, 0, X, y)
+    return np.abs(scores - 0.5) * 2.0
+
+
+def _c_index_score(X, y):
+    c_index = concordance_index_censored(y[y.dtype.names[0]],
+                                         y[y.dtype.names[1]],
+                                         X)
+    return c_index[0]
+
+
+def sym_c_index_score(X, y):
+    """
+    symmetric concordance index for right-censored data
+    """
+    scores = np.apply_along_axis(_c_index_score, 0, X, y)
     return np.abs(scores - 0.5) * 2.0

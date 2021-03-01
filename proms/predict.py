@@ -154,8 +154,9 @@ def main():
         with open(output_file, 'w') as fh:
             print(f'predicted values:\n{pred_val}', file=fh)
     elif prediction_type == 'sur':
-        # FIXME:
-        pass
+        pred_val = saved_model.predict(X_train_combined)
+        with open(output_file, 'w') as fh:
+            print(f'predicted risk scores:\n{pred_val}', file=fh)
     else:
         raise ValueError(f'prediction type {prediction_type} not supported')
 

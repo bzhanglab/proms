@@ -8,6 +8,7 @@ from datetime import datetime
 from tempfile import mkdtemp
 from shutil import rmtree
 import pandas as pd
+import numpy as np
 import argparse
 import pickle
 from sklearn.model_selection import train_test_split
@@ -15,6 +16,7 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.pipeline import Pipeline
+from .utils import StandardScalerDf
 from joblib import Memory
 from proms import Dataset, FeatureSelector, config
 
@@ -35,13 +37,13 @@ def get_scores(prediction_type, grid, X_test, y_test, X_test_2, y_test_2):
         test_acc_2 = test_score_2 = 'NA'
         label_2 = pred_label_s_2 = pred_prob_s_2 = 'NA'
         if X_test is not None:
-            label = ','.join(map(str, y_test.to_numpy().squeeze()))
+            label = ','.join(map(str, y_test))
             pred_prob = grid.predict_proba(X_test)[:, 1]
             pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
-            test_score = grid.score(X_test, y_test.values.ravel())
+            test_score = grid.score(X_test, y_test)
             pred_prob_s = ','.join(map('{:.4f}'.format, pred_prob))
             pred_label_s = ','.join(map(str, pred_label))
-            test_acc = accuracy_score(y_test.to_numpy().squeeze(), pred_label)
+            test_acc = accuracy_score(y_test, pred_label)
 
         if X_test_2 is not None:
             pred_prob_2 = grid.predict_proba(X_test_2)[:, 1]
@@ -49,11 +51,10 @@ def get_scores(prediction_type, grid, X_test, y_test, X_test_2, y_test_2):
             pred_prob_s_2 = ','.join(map('{:.4f}'.format, pred_prob_2))
             pred_label_s_2 = ','.join(map(str, pred_label_2))
             if y_test_2 is not None:
-                label_2 = ','.join(map(str, y_test_2.to_numpy().squeeze()))
+                label_2 = ','.join(map(str, y_test_2))
                 test_score_2 = round(grid.score(
-                    X_test_2, y_test_2.values.ravel()), 4)
-                test_acc_2 = round(accuracy_score(y_test_2.to_numpy().squeeze(),
-                                                pred_label_2), 4)
+                    X_test_2, y_test_2), 4)
+                test_acc_2 = round(accuracy_score(y_test_2, pred_label_2), 4)
         scores = {'test_acc': test_acc,
                   'test_score': test_score,
                   'pred_prob_s': pred_prob_s,
@@ -71,22 +72,20 @@ def get_scores(prediction_type, grid, X_test, y_test, X_test_2, y_test_2):
         test_mse_2 = test_score_2 = 'NA'
         label_2 = pred_label_s_2 = 'NA'
         if X_test is not None:
-            label = ','.join(map(str, y_test.to_numpy().squeeze()))
+            label = ','.join(map(str, y_test))
             pred_label = grid.predict(X_test)
             pred_label = [round(item, 4) for item in pred_label]
-            test_score = grid.score(X_test, y_test.values.ravel())
+            test_score = grid.score(X_test, y_test)
             pred_label_s = ','.join(map(str, pred_label))
-            test_mse = mean_squared_error(y_test.to_numpy().squeeze(), pred_label)
+            test_mse = mean_squared_error(y_test, pred_label)
 
         if X_test_2 is not None:
             pred_label_2 = grid.predict(X_test_2)
             pred_label_s_2 = ','.join(map(str, pred_label_2))
             if y_test_2 is not None:
-                label_2 = ','.join(map(str, y_test_2.to_numpy().squeeze()))
-                test_score_2 = round(grid.score(X_test_2, 
-                                     y_test_2.values.ravel()), 4)
-                test_mse_2 = round(mean_squared_error(y_test_2.to_numpy().squeeze(),
-                                   pred_label_2), 4)
+                label_2 = ','.join(map(str, y_test_2))
+                test_score_2 = round(grid.score(X_test_2, y_test_2), 4)
+                test_mse_2 = round(mean_squared_error(y_test_2, pred_label_2), 4)
         scores = {'test_mse': test_mse,
                   'test_score': test_score,
                   'pred_label_s': pred_label_s,
@@ -97,9 +96,29 @@ def get_scores(prediction_type, grid, X_test, y_test, X_test_2, y_test_2):
                   'test_score_2': test_score_2
                  }
     elif prediction_type == 'sur':
-        # FIXME:
-        scores = None
+        test_risk_score_s = test_risk_score_s_2 = 'NA'
+        test_c_index = test_c_index_2 = 'NA'
+        label = label_2 = 'NA'
+        if X_test is not None:
+            label = ','.join(map(str, y_test))
+            test_risk_score = grid.predict(X_test)
+            test_c_index = round(grid.score(X_test, y_test), 4)
+            test_risk_score_s = ','.join(map('{:.4f}'.format, test_risk_score))
 
+        if X_test_2 is not None:
+            test_risk_score_2 = grid.predict(X_test_2)
+            test_risk_score_s_2 = ','.join(map('{:.4f}'.format, test_risk_score_2))
+            if y_test_2 is not None:
+                label_2 = ','.join(map(str, y_test_2))
+                test_c_index_2 = round(grid.score(X_test_2, y_test_2), 4)
+        scores = {'test_risk_score': test_risk_score_s,
+                  'label': label,
+                  'test_score': test_c_index,
+                  'test_risk_score_2': test_risk_score_s_2,
+                  'label_2': label_2,
+                  'test_score_2': test_c_index_2
+                 }
+    
     return scores
 
 
@@ -138,8 +157,11 @@ def set_up_results(data, mode, run_config, prediction_type, fs_method,
                    test_mse_1, test_score_1]
             print(f'mse:{test_mse_1}, r2: {test_score_1}')
         elif prediction_type == 'sur':
-            # FIXME:
-            pass
+            test_score_1 = round(scores['test_score'], 4)
+            res = [fs_method, omics_type, k,
+                   estimator, repeat, scores['label'], 
+                   scores['test_risk_score'], test_score_1]
+            print(f'c-index: {test_score_1}')
     elif mode == 'full':
         s_features = ','.join(selected_features)
         if data['test_2']['X'] is not None:
@@ -161,20 +183,32 @@ def set_up_results(data, mode, run_config, prediction_type, fs_method,
                            scores['label_2'], test_mse_2, test_score_2]
                     print(f'mse:{test_mse_2}, r2:{test_score_2}')
                 elif prediction_type == 'sur':
-                    pass
+                    test_score_2 = round(scores['test_score_2'], 4)
+                    res = [fs_method, omics_type, k, estimator,
+                           s_features, json.dumps(cluster_membership), -1,
+                           scores['label_2'], 
+                           scores['test_risk_score_2'], test_score_2]
+                    print(f'c-index:{test_score_2}')
             else:
                 if prediction_type == 'cls':
                     res = [fs_method, omics_type, k, estimator,
                         s_features, json.dumps(cluster_membership), -1, -1,
                         scores['pred_prob_s_2'], scores['pred_label_s_2']]
                 elif prediction_type == 'reg':
-                    pass
+                    res = [fs_method, omics_type, k, estimator,
+                        s_features, json.dumps(cluster_membership), -1, -1,
+                        scores['pred_label_s_2']]
                 elif prediction_type == 'sur':
-                    # FIXME:
-                    pass
+                    res = [fs_method, omics_type, k, estimator,
+                        s_features, json.dumps(cluster_membership), -1,
+                        scores['test_risk_score_2']]
         else:
-            res = [fs_method, omics_type, k, estimator,
-                   s_features, json.dumps(cluster_membership), -1, -1]
+            if prediction_type == 'sur':
+                res = [fs_method, omics_type, k, estimator,
+                    s_features, json.dumps(cluster_membership), -1]
+            else:
+                res = [fs_method, omics_type, k, estimator,
+                    s_features, json.dumps(cluster_membership), -1, -1]
 
     return res
 
@@ -206,9 +240,11 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
                                         axis=1)
     if data['test'] is not None:
         y_test = data['test']['y']
+        y_test = get_y(y_test, prediction_type)
     if data['test_2'] is not None:
         X_test_2 = data['test_2']['X']
         y_test_2 = data['test_2']['y']
+        y_test_2 = get_y(y_test_2, prediction_type)
 
     p_steps = []
     fs = FeatureSelector(views=view_names,
@@ -217,30 +253,35 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
                          k=k,
                          weighted=True,
                          prediction_type=prediction_type)
+    # assume all data are standardized
+    # it is a bit tricky to add this to the pipeline
+    # because the independent test data may have
+    # different number of input features
+    # p_steps.append(('standardscaler', StandardScalerDf()))
     p_steps.append(('featureselector', fs))
     p_steps.append((estimator, est))
     cachedir = mkdtemp()
     memory = Memory(location=cachedir, verbose=0)
     pipe = Pipeline(steps=p_steps, memory=memory)
-    param_grid = get_estimator_parameter_grid(estimator)
+    param_grid = get_estimator_parameter_grid(estimator, prediction_type)
     param_grid['featureselector__percentile'] = percentile
     score_func = {
         'cls': 'roc_auc',
         'reg': 'r2',
-        # FIXME:
+         # use the default scorer of the estimator
         'sur': None
     }
     cv = {
         'cls': StratifiedKFold(3),
         'reg': KFold(3),
-        # FIXME:
         'sur': KFold(3)
     }
     grid = GridSearchCV(pipe, param_grid, scoring=score_func[prediction_type],
                         cv=cv[prediction_type],
                         n_jobs=n_jobs,
                         verbose=0)
-    grid.fit(X_train_combined, y_train.values.ravel())
+    y_train = get_y(y_train, prediction_type)
+    grid.fit(X_train_combined, y_train)
     rmtree(cachedir)
 
     scores = get_scores(prediction_type, grid, X_test_combined,
@@ -248,6 +289,22 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
     res = set_up_results(data, mode, run_config, prediction_type, fs_method,
                          k, estimator, repeat, scores, grid)
     return res
+
+
+def get_y(y_df, prediction_type):
+    """
+    convert data frame to structured array for survival type
+    """
+    if prediction_type == 'sur':
+        col_event = y_df.columns[0]
+        col_time = y_df.columns[1]
+        y = np.empty(dtype=[(col_event, np.bool), (col_time, np.float64)],
+                    shape=y_df.shape[0])
+        y[col_event] = (y_df[col_event] == 1).values
+        y[col_time] = y_df[col_time].values
+    else:
+        y = y_df.values.ravel()
+    return y
 
 
 def run_single_estimator(data, run_config, k, repeat, fs_method,
@@ -356,8 +413,7 @@ def get_estimator_parameter_grid(estimator, prediction_type='cls'):
     """
     pg = config.parameter_grid[prediction_type]
     if not estimator in pg:
-        raise ValueError(f'estimator {estimator} not supported for '
-              'prediction type {prediction_type}')
+        raise ValueError(f'estimator "{estimator}" not supported for prediction type "{prediction_type}"')
     pipeline_pg = {}
     for parameter in pg[estimator]:
         pipeline_pg[estimator + '__' + parameter] = pg[estimator][parameter]
@@ -381,9 +437,8 @@ def get_results_col_name(all_data, mode='eval'):
             column_names = ['fs', 'type', 'k', 'estimator', 'repeat',
                             'val_pred_label', 'val_label', 'val_mse', 'val_r2']
         elif prediction_type == 'sur':
-            # FIXME:
             column_names = ['fs', 'type', 'k', 'estimator', 'repeat',
-                            'val_pred_label', 'val_label', 'val_mse', 'val_r2']
+                            'val_label', 'val_risk_score', 'val_c_index']
     elif mode == 'full':
         if all_data['desc']['has_test']:
             if all_data['y_test'] is not None:
@@ -400,12 +455,10 @@ def get_results_col_name(all_data, mode='eval'):
                                     'test_pred_label', 'test_label',
                                     'test_mse', 'test_r2']
                 elif prediction_type == 'sur':
-                    # FIXME:
                     column_names = ['fs', 'type', 'k', 'estimator',
                                     'features', 'membership',
-                                    'mean_val_acc', 'mean_val_auroc',
-                                    'test_score', 'test_pred_label',
-                                    'test_label', 'test_accuracy', 'test_auroc']
+                                    'mean_val_c_index',
+                                    'test_label', 'test_risk_score', 'test_c_index']
             else:
                 if prediction_type == 'cls':
                     column_names = ['fs', 'type', 'k', 'estimator',
@@ -418,11 +471,9 @@ def get_results_col_name(all_data, mode='eval'):
                                     'mean_val_mse', 'mean_val_r2',
                                     'test_pred_label']
                 elif prediction_type == 'sur':
-                    # FIXME:
                     column_names = ['fs', 'type', 'k', 'estimator',
                                     'features', 'membership',
-                                    'mean_val_acc', 'mean_val_auroc',
-                                    'test_score', 'test_pred_label']
+                                    'mean_val_c_index', 'test_risk_score']
         else:
             if prediction_type == 'cls':
                 column_names = ['fs', 'type', 'k', 'estimator',
@@ -433,10 +484,9 @@ def get_results_col_name(all_data, mode='eval'):
                                 'features', 'membership',
                                 'mean_val_mse', 'mean_val_r2']
             if prediction_type == 'sur':
-                # FIXME:
                 column_names = ['fs', 'type', 'k', 'estimator',
                                 'features', 'membership',
-                                'mean_val_acc', 'mean_val_auroc']
+                                'mean_val_c_index']
 
     return column_names
 
@@ -477,8 +527,18 @@ def select_for_full_model(df, prediction_type):
         res['best_mean_mse'] = best_mean_mse
         res['best_mean_r2'] = best_mean_r2
     elif prediction_type == 'sur':
-        # FIXME:
-        pass
+        df_sel = df[['fs', 'k', 'estimator', 'val_c_index']]
+        df_sel = df_sel.groupby(['fs', 'k', 'estimator']).mean()
+        df_sel = df_sel.reset_index()
+        best_auroc_idx = df_sel['val_c_index'].argmax()
+        fs_sel = df_sel.loc[best_auroc_idx, 'fs']
+        k_sel = df_sel.loc[best_auroc_idx, 'k']
+        estimator_sel = df_sel.loc[best_auroc_idx, 'estimator']
+        best_mean_c_index = df_sel.loc[best_auroc_idx, 'val_c_index']
+        res['fs_sel'] = fs_sel
+        res['k_sel'] = k_sel
+        res['estimator_sel'] = estimator_sel
+        res['best_mean_c_index'] = best_mean_c_index
 
     return res
 
@@ -528,8 +588,7 @@ def run_fs(all_data, run_config, run_version, output_root, seed):
         cur_res[0][6] = res_dict['best_mean_mse']
         cur_res[0][7] = res_dict['best_mean_r2']
     elif prediction_type == 'sur':
-        # FIXME:
-        pass
+        cur_res[0][6] = res_dict['best_mean_c_index']
 
     res.extend(cur_res)
     results_df = pd.DataFrame(res, columns=column_names)
@@ -542,23 +601,25 @@ def run_fs(all_data, run_config, run_version, output_root, seed):
 
 def check_data_config(config_file):
     """
-    verify data configuration file 
+    verify data configuration file
     """
     with open(config_file) as config_fh:
         data_config = yaml.load(config_fh)
 
-    required_fields = {'name', 'data_root', 'train_dataset', 'target_view',
+    required_fields = {'project_name', 'data_directory', 'train_data_directory', 'target_view',
                        'target_label', 'data'}
-    allowed_fields = {'test_dataset'} | required_fields
+    allowed_fields = required_fields | {'test_data_directory'}
     if not required_fields <= data_config.keys() <= allowed_fields:
-        raise Exception(f'config required fields: {required_fields},'
-             'allowed fields: {allowed_fields}')
+        raise Exception(f'config required fields: {required_fields},\nallowed fields: {allowed_fields}')
 
+    test_dataset = data_config['test_data_directory'] if 'test_data_directory' in data_config else None
     data_required_fields = {'train'}
-    data_allowed_fields = {'test'} | data_required_fields
+    if test_dataset is not None:
+        data_allowed_fields = {'test'} | data_required_fields
+    else:
+        data_allowed_fields = data_required_fields
     if not data_required_fields <= data_config['data'].keys() <= data_allowed_fields:
-        raise Exception(f'data required fields: {data_required_fields},'
-            ' allowed fileds: {data_allowed_fields}')
+        raise Exception(f'data required fields: {data_required_fields},\nallowed fileds: {data_allowed_fields}')
 
     train_required_fields = {'label', 'view'}
     if not train_required_fields <= data_config['data']['train'].keys():
@@ -571,12 +632,12 @@ def create_dataset(config_file, output_run):
     check_data_config(config_file)
     with open(config_file) as config_fh:
         data_config = yaml.load(config_fh)
-        data_root = data_config['data_root']
+        data_root = data_config['data_directory']
         if not os.path.isabs(data_root):
             # relative to the data config file
             config_root = os.path.abspath(os.path.dirname(config_file))
             data_root = os.path.join(config_root, data_root)
-        ds_name = data_config['name']
+        ds_name = data_config['project_name']
     all_data = Dataset(name=ds_name, root=data_root, config_file=config_file,
                        output_dir=output_run)()
     return all_data

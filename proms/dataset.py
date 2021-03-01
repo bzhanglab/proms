@@ -27,7 +27,7 @@ class Data(object):
 
     def has_test_set(self):
         """ does the dataset contain independent test set """
-        return 'test_dataset' in self.config
+        return 'test_data_directory' in self.config
 
     def load_data(self, data_file, samples, vis=False):
         # load feature data
@@ -79,8 +79,8 @@ class Dataset(Data):
         regression, classification or survival analysis task
         """
         if self.clin_data is None:
-            return None
-      
+            raise ValueError('No clinical data has been set')
+
         target_vals = self.clin_data.iloc[:,0].values
         target_dtype = target_vals.dtype
         # for classification, binary only
@@ -109,22 +109,42 @@ class Dataset(Data):
 
         raise ValueError('wrong target values')
 
+    def load_clin_surv(self, clin_file, target_label):
+        """
+        load y for survival analysis
+        """
+        clin_data = pd.read_csv(clin_file, sep='\t', index_col=0)
+        col_event = target_label[0]
+        col_time = target_label[1]
+        y = np.empty(dtype=[(col_event, np.bool), (col_time, np.float64)],
+                     shape=clin_data.shape[0])
+        y[col_event] = (clin_data[col_event] == 1).values
+        y[col_time] = clin_data[col_time].values
+        sample_names = clin_data.index.values
+        y = pd.DataFrame.from_records(y, index=sample_names)
+        return y
 
     def __call__(self):
         print('processing data ...')
-        train_dataset = self.config['train_dataset']
+        train_dataset = self.config['train_data_directory']
         target_view = self.config['target_view']
         target_label = self.config['target_label']
-        target_view = self.config['target_view']
-        clin_file = self.config['data'][train_dataset]['label']['file']
+        clin_file = self.config['data']['train']['label']['file']
         clin_file = os.path.join(self.root, train_dataset, clin_file)
-        # the first col will be the index
-        clin_data = pd.read_csv(clin_file, sep='\t', index_col=0)
-        # samples X phenotype
-        clin_data = clin_data.loc[:, [target_label]]
-        self.clin_data = clin_data
-        self.prediction_type = self.check_prediction_type()
-        train_sample = clin_data.index
+        if isinstance(target_label, list):  # survival
+            clin_data = self.load_clin_surv(clin_file, target_label)
+            train_sample = clin_data.index
+            self.clin_data = clin_data
+            self.prediction_type = config.prediction_map['survival']
+        else:
+            # the first col will be the index
+            clin_data = pd.read_csv(clin_file, sep='\t', index_col=0)
+            # samples X phenotype
+            clin_data = clin_data.loc[:, [target_label]]
+            self.clin_data = clin_data
+            self.prediction_type = self.check_prediction_type()
+            train_sample = clin_data.index
+        print(f'prediction type: {self.prediction_type}')
         # for now: must be two-class classification
         if self.prediction_type == config.prediction_map['classification']:
             le = preprocessing.LabelEncoder()
@@ -137,22 +157,27 @@ class Dataset(Data):
         y = clin_data
 
         # get the name of samples that have all the omics data available
-        all_views = self.config['data'][train_dataset]['view']
+        all_views = self.config['data']['train']['view']
         n_views = len(all_views)
         all_view_names = [item['type'] for item in all_views]
         all_view_names.remove(target_view)
         all_view_ordered = [target_view] + sorted(all_view_names)
 
         if self.has_test:
-            test_dataset = self.config['test_dataset']
-            all_test_views = self.config['data'][test_dataset]['view']
-            if 'label' in self.config['data'][test_dataset]:
-                test_clin_file = self.config['data'][test_dataset]['label']['file']
+            test_dataset = self.config['test_data_directory']
+            all_test_views = self.config['data']['test']['view']
+            if 'label' in self.config['data']['test']:
+                test_clin_file = self.config['data']['test']['label']['file']
                 test_clin_file = os.path.join(self.root, test_dataset, test_clin_file)
-                test_clin_data = pd.read_csv(test_clin_file, sep='\t', index_col=0)
-                test_samples = test_clin_data.index
-                # samples X phenotype
-                test_clin_data = test_clin_data.loc[:, [target_label]]
+                if self.prediction_type == 'sur':
+                    test_clin_data = self.load_clin_surv( test_clin_file, target_label)
+                    test_samples = test_clin_data.index
+                else:
+                    test_clin_data = pd.read_csv(test_clin_file, sep='\t',
+                                                 index_col=0)
+                    test_samples = test_clin_data.index
+                    # samples X phenotype
+                    test_clin_data = test_clin_data.loc[:, [target_label]]
                 if self.prediction_type == config.prediction_map['classification']:
                     le = preprocessing.LabelEncoder()
                     test_clin_vals = test_clin_data.iloc[:, 0].values

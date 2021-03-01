@@ -3,8 +3,8 @@ import pandas as pd
 import re
 from sklearn.base import BaseEstimator, TransformerMixin
 from .k_medoids import KMedoids
-from .utils import sym_auc_score
-from sklearn.feature_selection import f_classif, mutual_info_regression
+from .utils import sym_auc_score, sym_c_index_score
+from sklearn.feature_selection import f_classif, f_regression
 from sklearn.feature_selection import SelectPercentile
 import warnings
 from sklearn.feature_selection._univariate_selection import _BaseFilter
@@ -94,9 +94,8 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
     def get_score_func(self):
         score_func = {
             'cls': sym_auc_score,
-            'reg': mutual_info_regression,
-            # FIXME:
-            'sur': None
+            'reg': f_regression,
+            'sur': sym_c_index_score
         }
         return score_func[self.prediction_type]
     
@@ -144,9 +143,6 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             cur_view_features = [i for i in self.all_features
                                  if ptn.match(i)]
             cur_X = X.loc[:, cur_view_features]
-            # FIXME:
-            #  if score func is mutual_info_regression,
-            #  we need to normalize it to [0,1]
             selector1 = SelectMinScore(score_func=self.get_score_func(),
                                        min_score=cutoff)
             selector1.fit(cur_X, y)
