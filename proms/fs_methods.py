@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import re
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from .k_medoids import KMedoids
-from .utils import sym_auc_score, sym_c_index_score
+from .utils import sym_auc_score, sym_c_index_score, abs_cor
 from sklearn.feature_selection import f_classif, f_regression
 from sklearn.feature_selection import SelectPercentile
 import warnings
@@ -74,6 +76,10 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
                             self.k, self.get_score_func(), self.weighted)()
             selected_features, cluster_membership = ret
             return (selected_features, cluster_membership)
+        elif self.method == 'pca_ex':
+            # return the fitted pca model
+            pca = fs_method(self.data, self.target_view, self.k)()
+            return (pca,)
         else:
             raise ValueError('method {} is not supported'.format(self.method))
 
@@ -94,7 +100,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
     def get_score_func(self):
         score_func = {
             'cls': sym_auc_score,
-            'reg': f_regression,
+            'reg': abs_cor,
             'sur': sym_c_index_score
         }
         return score_func[self.prediction_type]
@@ -169,9 +175,10 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         self.all_features = X.columns.tolist()
         self.pre_filter(X, y)
         self.results = self.feature_sel()
-        self.selected_features = self.results[0]
-        if len(self.results) == 2:
-            self.cluster_membership = self.results[1]
+        if self.method != 'pca_ex':
+            self.selected_features = self.results[0]
+            if len(self.results) == 2:
+                self.cluster_membership = self.results[1]
         return self
 
     def get_feature_names(self):
@@ -183,6 +190,17 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         if self.selected_features is not None:
             return X.loc[:, self.selected_features]
+        else:  # for pca_ex only
+            ptn = re.compile(r'^{}_'.format(self.target_view))
+            cur_view_features = [i for i in self.all_features
+                                if ptn.match(i)]
+            cur_X = X.loc[:, cur_view_features]
+            X = cur_X.loc[:, self.support[self.target_view]]
+            pca = self.results[0]
+            # X_std = StandardScaler().fit_transform(X)
+            X_transformed = pca.transform(X)
+            return X_transformed
+
 
 class FeatureSelBase(object):
     """Base class for feature selection method"""
@@ -336,7 +354,21 @@ class ProMS_mo(FeatureSelBase):
         return (selected_features, cluster_membership)
 
 
+class PCA_ex(FeatureSelBase):
+    """PCA feature extraction"""
+    def __init__(self, all_view_data, target_view_name, k):
+        super().__init__('sv', all_view_data, target_view_name, k)
+
+    def __call__(self):
+        X = self.all_view_data[self.target_view_name]['X']
+        # X_std = StandardScaler().fit_transform(X)
+        pca = PCA(n_components=self.k, svd_solver='full')
+        pca.fit(X)
+        return pca
+
+
 fs_methods = {
     'proms': ProMS,
-    'proms_mo': ProMS_mo
+    'proms_mo': ProMS_mo,
+    'pca_ex': PCA_ex
 }

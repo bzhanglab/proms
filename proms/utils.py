@@ -1,20 +1,21 @@
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import check_X_y
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import multiprocessing
 from sksurv.metrics import concordance_index_censored
-from sklearn.preprocessing import StandardScaler
+# from sklearn.preprocessing import StandardScaler
+from scipy.stats import pearsonr
 
 
-class StandardScalerDf(StandardScaler):
-    """DataFrame Wrapper around StandardScaler"""
-    def __init__(self, copy=True, with_mean=True, with_std=True):
-        super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
+# class StandardScalerDf(StandardScaler):
+#     """DataFrame Wrapper around StandardScaler"""
+#     def __init__(self, copy=True, with_mean=True, with_std=True):
+#         super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
 
-    def transform(self, X, copy=None):
-        z = super().transform(X.values)
-        return pd.DataFrame(z, index=X.index, columns=X.columns)
+#     def transform(self, X, copy=None):
+#         z = super().transform(X.values)
+#         return pd.DataFrame(z, index=X.index, columns=X.columns)
 
 
 def _auc_score(y_pred, y_true):
@@ -96,3 +97,19 @@ def sym_c_index_score(X, y):
     """
     scores = np.apply_along_axis(_c_index_score, 0, X, y)
     return np.abs(scores - 0.5) * 2.0
+
+
+def _cor_coeff(X, y):
+    """
+    pearson correlation coefficient
+    """
+    corr, _ = pearsonr(X, y)
+    return corr
+
+
+def abs_cor(X, y):
+    """
+    symmetric concordance index for right-censored data
+    """
+    scores = np.apply_along_axis(_cor_coeff, 0, X, y)
+    return np.abs(scores)

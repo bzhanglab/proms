@@ -16,7 +16,7 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.pipeline import Pipeline
-from .utils import StandardScalerDf
+# from .utils import StandardScalerDf
 from joblib import Memory
 from proms import Dataset, FeatureSelector, config
 
@@ -124,7 +124,6 @@ def get_scores(prediction_type, grid, X_test, y_test, X_test_2, y_test_2):
 
 def set_up_results(data, mode, run_config, prediction_type, fs_method,
                    k, estimator, repeat, scores, grid):
-    # best_percentile = grid.best_params_['featureselector__percentile']
     best_fs = grid.best_estimator_.named_steps['featureselector']
     selected_features = best_fs.get_feature_names()
     res = None
@@ -163,7 +162,10 @@ def set_up_results(data, mode, run_config, prediction_type, fs_method,
                    scores['test_risk_score'], test_score_1]
             print(f'c-index: {test_score_1}')
     elif mode == 'full':
-        s_features = ','.join(selected_features)
+        if fs_method != 'pca_ex':
+            s_features = ','.join(selected_features)
+        else:
+            s_features = 'NA'
         if data['test_2']['X'] is not None:
             if data['test_2']['y'] is not None:
                 if prediction_type == 'cls':
@@ -256,8 +258,8 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
     # assume all data are standardized
     # it is a bit tricky to add this to the pipeline
     # because the independent test data may have
-    # different number of input features
-    # p_steps.append(('standardscaler', StandardScalerDf()))
+    # different number of input features, so the full model trained
+    # can not be directly used to make predictions
     p_steps.append(('featureselector', fs))
     p_steps.append((estimator, est))
     cachedir = mkdtemp()
@@ -283,7 +285,7 @@ def run_single_fs_method(data, fs_method, run_config, k, repeat, estimator,
     y_train = get_y(y_train, prediction_type)
     grid.fit(X_train_combined, y_train)
     rmtree(cachedir)
-
+    
     scores = get_scores(prediction_type, grid, X_test_combined,
                         y_test, X_test_2, y_test_2)
     res = set_up_results(data, mode, run_config, prediction_type, fs_method,
@@ -319,6 +321,10 @@ def run_single_estimator(data, run_config, k, repeat, fs_method,
         res.append(cur_res)
         if n_view > 1:
             cur_res = run_single_fs_method(data, 'proms_mo', run_config, k,
+                          repeat, estimator, mode, seed)
+            res.append(cur_res)
+        if run_config['include_pca']:
+            cur_res = run_single_fs_method(data, 'pca_ex', run_config, k,
                           repeat, estimator, mode, seed)
             res.append(cur_res)
     else:
@@ -498,6 +504,8 @@ def select_for_full_model(df, prediction_type):
     res = {}
     if prediction_type == 'cls':
         df_sel = df[['fs', 'k', 'estimator', 'val_acc', 'val_auroc']]
+        # pca_ex cannot be used for full model
+        df_sel = df_sel[df_sel.fs != 'pca_ex']
         df_sel = df_sel.groupby(['fs', 'k', 'estimator']).mean()
         df_sel = df_sel.reset_index()
         best_auroc_idx = df_sel['val_auroc'].argmax()
@@ -513,6 +521,7 @@ def select_for_full_model(df, prediction_type):
         res['best_mean_auroc'] = best_mean_auroc
     elif prediction_type == 'reg':
         df_sel = df[['fs', 'k', 'estimator', 'val_mse', 'val_r2']]
+        df_sel = df_sel[df_sel.fs != 'pca_ex']
         df_sel = df_sel.groupby(['fs', 'k', 'estimator']).mean()
         df_sel = df_sel.reset_index()
         best_auroc_idx = df_sel['val_r2'].argmax()
@@ -528,6 +537,7 @@ def select_for_full_model(df, prediction_type):
         res['best_mean_r2'] = best_mean_r2
     elif prediction_type == 'sur':
         df_sel = df[['fs', 'k', 'estimator', 'val_c_index']]
+        df_sel = df_sel[df_sel.fs != 'pca_ex']
         df_sel = df_sel.groupby(['fs', 'k', 'estimator']).mean()
         df_sel = df_sel.reset_index()
         best_auroc_idx = df_sel['val_c_index'].argmax()
@@ -610,7 +620,9 @@ def check_data_config(config_file):
                        'target_label', 'data'}
     allowed_fields = required_fields | {'test_data_directory'}
     if not required_fields <= data_config.keys() <= allowed_fields:
-        raise Exception(f'config required fields: {required_fields},\nallowed fields: {allowed_fields}')
+        raise Exception(f'provided fields: {sorted(data_config.keys())}\n'
+                        f'config required fields: {sorted(required_fields)}\n'
+                        f'allowed fields: {sorted(allowed_fields)}')
 
     test_dataset = data_config['test_data_directory'] if 'test_data_directory' in data_config else None
     data_required_fields = {'train'}
@@ -618,12 +630,17 @@ def check_data_config(config_file):
         data_allowed_fields = {'test'} | data_required_fields
     else:
         data_allowed_fields = data_required_fields
-    if not data_required_fields <= data_config['data'].keys() <= data_allowed_fields:
-        raise Exception(f'data required fields: {data_required_fields},\nallowed fileds: {data_allowed_fields}')
+    data_provided_fields = data_config['data'].keys()
+    if not data_required_fields <= data_provided_fields <= data_allowed_fields:
+        raise Exception(f'data section provided fields: {sorted(data_provided_fields)}\n'
+                        f'required fields: {sorted(data_required_fields)}\n'
+                        f'allowed fileds: {sorted(data_allowed_fields)}')
 
     train_required_fields = {'label', 'view'}
-    if not train_required_fields <= data_config['data']['train'].keys():
-        raise Exception(f'train data required fields: {train_required_fields}')
+    train_provided_fields = data_config['data']['train'].keys()
+    if not train_required_fields <= train_provided_fields:
+        raise Exception(f'train data required fields: {sorted(train_provided_fields)}\n'
+                        f'required fields: {sorted(train_required_fields)}')
 
 
 def create_dataset(config_file, output_run):
@@ -683,6 +700,7 @@ def main():
     run_config_file = args.run_config_file
     data_config_file = args.data_config_file
     output_root = args.output_root
+    include_pca = args.include_pca
     # time stamp
     run_version = args.run_version
     # random seed for full model (if applicable)
@@ -699,6 +717,7 @@ def main():
                      prediction_type)
     run_config['run_version'] = run_version
     run_config['output_root'] = output_root
+    run_config['include_pca'] = include_pca
 
     run_fs(all_data, run_config, run_version, output_root, seed)
 
@@ -750,6 +769,11 @@ def get_parser():
                         type=str,
                         help='name of the run, default to current date/time'
                         )
+    parser.add_argument('-p', '--include_pca', dest='include_pca',
+                        default=False,
+                        action='store_true',
+                        help='include supervised PCA method in the results'
+                       )
     return parser
 
 

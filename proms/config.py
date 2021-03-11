@@ -24,8 +24,9 @@ prediction_map = {
 
 default_estimators = {
   'cls': ['lr', 'rf', 'svm', 'gbm'],
-  'reg': ['rf', 'svm', 'gbm'],
-  'sur': ['coxph', 'rf', 'svm', 'gbm']
+  'reg': ['ridge', 'rf', 'svm', 'gbm'],
+#   'sur': ['coxph', 'rf', 'svm', 'gbm']
+  'sur': ['coxph']
 }
 
 parameter_grid = {
@@ -123,9 +124,9 @@ def get_estimator(seed, estimator, prediction_type='cls'):
     if prediction_type == 'sur':
         est_dict = {
             'coxph': CoxPHSurvivalAnalysis(),
-            'rf': RandomSurvivalForest(random_state=seed),
-            'svm': FastSurvivalSVM(random_state=seed),
-            'gbm': GradientBoostingSurvivalAnalysis(random_state=seed)
+            # 'rf': RandomSurvivalForest(random_state=seed),
+            # 'svm': FastSurvivalSVM(random_state=seed),
+            # 'gbm': GradientBoostingSurvivalAnalysis(random_state=seed)
         }
         return est_dict[estimator]
     
