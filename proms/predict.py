@@ -146,17 +146,19 @@ def main():
     if prediction_type == 'cls':
         pred_prob = saved_model.predict_proba(X_train_combined)[:,1]
         pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
-        with open(output_file, 'w') as fh:
-            print(f'predicted probability:\n{pred_prob}', file=fh)
-            print(f'\npredicted label:\n{pred_label}', file=fh)
+        res = pd.DataFrame({'probability': pred_prob, 'label': pred_label},
+                             index=X_train_combined.index)
+        res.to_csv(output_file, sep='\t')
     elif prediction_type == 'reg':
         pred_val = saved_model.predict(X_train_combined)
-        with open(output_file, 'w') as fh:
-            print(f'predicted values:\n{pred_val}', file=fh)
+        res = pd.DataFrame({'label': pred_val},
+                             index=X_train_combined.index)
+        res.to_csv(output_file, sep='\t')
     elif prediction_type == 'sur':
         pred_val = saved_model.predict(X_train_combined)
-        with open(output_file, 'w') as fh:
-            print(f'predicted risk scores:\n{pred_val}', file=fh)
+        res = pd.DataFrame({'risk_score': pred_val},
+                             index=X_train_combined.index)
+        res.to_csv(output_file, sep='\t')
     else:
         raise ValueError(f'prediction type {prediction_type} not supported')
 

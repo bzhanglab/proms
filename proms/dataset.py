@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import os
 from sklearn import preprocessing
-import json
 import yaml
 import matplotlib.pyplot as plt
 import pickle
@@ -53,7 +52,7 @@ class Data(object):
             myfig.savefig(os.path.join(self.output_dir, file_name),
                           format='pdf')
 
-        X.sort_index(inplace=True)
+        # X.sort_index(inplace=True)
         return X
 
     def save_data(self):

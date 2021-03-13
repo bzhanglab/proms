@@ -5,6 +5,7 @@ __version__ = '1.0.5'
 url = 'https://github.com/bzhanglab/proms'
 
 install_requires = [
+    'sksurv',
     'numpy',
     'scipy',
     'sklearn',

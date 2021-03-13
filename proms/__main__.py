@@ -166,7 +166,7 @@ def set_up_results(data, mode, run_config, prediction_type, fs_method,
             s_features = ','.join(selected_features)
         else:
             s_features = 'NA'
-        if data['test_2']['X'] is not None:
+        if data['test_2'] is not None and data['test_2']['X'] is not None:
             if data['test_2']['y'] is not None:
                 if prediction_type == 'cls':
                     test_acc_2 = round(scores['test_acc_2'], 4)
@@ -365,7 +365,7 @@ def prepare_data(all_data, repeat, mode):
     data['desc']['prediction_type'] = prediction_type
     if mode == 'eval':
         data['test'] = {}
-    if 'X_test' in all_data:
+    if all_data['X_test'] is not None:
         data['test_2'] = {}
 
     for i in range(n_view):
@@ -380,7 +380,7 @@ def prepare_data(all_data, repeat, mode):
             cur_X_test = cur_X.loc[y_test.index, :]
             data['test'][cur_view_name]['X'] = cur_X_test
 
-        if 'X_test' in all_data:
+        if all_data['X_test'] is not None:
             data['test_2']['X'] = all_data['X_test']
             data['test_2']['y'] = all_data['y_test']
 
