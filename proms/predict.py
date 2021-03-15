@@ -148,20 +148,18 @@ def main():
         pred_label = [1 if x >= 0.5 else 0 for x in pred_prob]
         res = pd.DataFrame({'probability': pred_prob, 'label': pred_label},
                              index=X_train_combined.index)
-        res.to_csv(output_file, sep='\t')
     elif prediction_type == 'reg':
         pred_val = saved_model.predict(X_train_combined)
         res = pd.DataFrame({'label': pred_val},
                              index=X_train_combined.index)
-        res.to_csv(output_file, sep='\t')
     elif prediction_type == 'sur':
         pred_val = saved_model.predict(X_train_combined)
         res = pd.DataFrame({'risk_score': pred_val},
                              index=X_train_combined.index)
-        res.to_csv(output_file, sep='\t')
     else:
         raise ValueError(f'prediction type {prediction_type} not supported')
 
+    res.to_csv(output_file, sep='\t', index_label='sample')
     print(f'{output_file} created.')
 
 
