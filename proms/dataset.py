@@ -252,5 +252,5 @@ class Dataset(Data):
                 print('test sample size: {}'.format(all_data_['X_test'].shape[0]))
 
         self.all_data = all_data_
-        self.save_data()
+        # self.save_data()
         return all_data_
