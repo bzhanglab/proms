@@ -5,10 +5,10 @@ __version__ = '1.0.5'
 url = 'https://github.com/bzhanglab/proms'
 
 install_requires = [
-    'sksurv',
+    'scikit-survival',
     'numpy',
     'scipy',
-    'sklearn',
+    'scikit-learn',
     'pandas',
     'xgboost',
     'matplotlib',
