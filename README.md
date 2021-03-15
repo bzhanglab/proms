@@ -8,6 +8,4 @@ biomarkers using proteomics data with the help of additional omics views
 (e.g. RNAseq).
 
 
-## Documentation
-
-Updated documentation coming soon...
+[Check out the documentation](https://aws2.zhang-lab.org/proms/)
