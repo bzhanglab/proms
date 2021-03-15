@@ -63,7 +63,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         """
          single or multi omics/view mode
         """
-        if self.method.endswith('_mo'):
+        if self.method.endswith('_mo') and self.method != 'pca_ex':
             return 'mo'
         return 'so'
 
