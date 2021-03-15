@@ -1,7 +1,7 @@
 Example
 =======
 
-To test the package, download a sample dataset from `here <https://zhanglab.s3-us-west-2.amazonaws.com/proms_test.tgz)>`_.
+To test the package, download a sample dataset from `here <https://zhanglab.s3-us-west-2.amazonaws.com/proms_test.tgz>`_.
 
 .. code-block:: none
 
