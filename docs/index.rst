@@ -26,10 +26,3 @@ biomarkers using proteomics data with the help of additional omics views
    predict
    example
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
