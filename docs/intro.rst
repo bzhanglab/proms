@@ -34,7 +34,7 @@ The whole process is illustrated in the following diagram:
 
 .. image:: images/proms.png
   :align: center
-  :width: 200px
+  :width: 120px
 
 ProMS_mo: Protein marker selection with multi-omics data
 --------------------------------------------------------
@@ -69,4 +69,4 @@ in the following diagram:
 
 .. image:: images/proms_mo.png
   :align: center
-  :width: 600px
+  :width: 400px
