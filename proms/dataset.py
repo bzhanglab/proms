@@ -20,8 +20,8 @@ class Data(object):
         if output_dir is not None and not os.path.exists(output_dir):
             os.makedirs(output_dir)
         config_file = os.path.join(root, config_file)
-        with open(config_file) as fh:
-            self.config = yaml.load(fh)
+        with open(config_file,encoding="utf-8") as fh:
+            self.config = yaml.safe_load(fh)
         self.has_test = self.has_test_set()
 
     def has_test_set(self):
@@ -59,7 +59,7 @@ class Data(object):
         """save all data into a file"""
         if self.output_dir is not None:
             fname = self.name + '_all_data.pkl'
-            with open(os.path.join(self.output_dir, fname), 'wb') as fh:
+            with open(os.path.join(self.output_dir, fname), 'wb',encoding="utf-8") as fh:
                 pickle.dump(self.all_data, fh, protocol=pickle.HIGHEST_PROTOCOL)
 
 
