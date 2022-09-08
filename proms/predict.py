@@ -130,12 +130,12 @@ def main():
         }
     }
 
+    all_data = None
     with tempfile.NamedTemporaryFile(suffix='.yml', delete=False) as fh:
         yaml.dump(config_dict, fh)
+        all_data = create_dataset(fh.name)
 
-    all_data = create_dataset(temp.name)
     data = prepare_data(all_data)
-    temp.close()
     X_train_combined = None
     view_names = data['desc']['view_names']
     for view in view_names:
