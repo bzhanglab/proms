@@ -114,7 +114,6 @@ def main():
 
     # create a config file internally
     # user only need to provide a tsv data file
-    temp = tempfile.NamedTemporaryFile(suffix='.yml')
     config_dict = {
         'name': 'predict_dataset',
         'data_root': os.path.dirname(data_file),
@@ -131,7 +130,7 @@ def main():
         }
     }
 
-    with open(temp.name, 'w') as fh:
+    with tempfile.NamedTemporaryFile(suffix='.yml', delete=False) as fh:
         yaml.dump(config_dict, fh)
 
     all_data = create_dataset(temp.name)
