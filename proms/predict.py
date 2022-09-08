@@ -131,7 +131,7 @@ def main():
     }
 
     all_data = None
-    with tempfile.NamedTemporaryFile(suffix='.yml', delete=False) as fh:
+    with tempfile.NamedTemporaryFile(suffix='.yml', delete=False, mode='w') as fh:
         yaml.dump(config_dict, fh)
         all_data = create_dataset(fh.name)
 
