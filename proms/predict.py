@@ -79,7 +79,7 @@ def prepare_data(all_data):
 def create_dataset(config_file, output_run=None):
     """ create data structure from input data files """
     with open(config_file) as config_fh:
-        data_config = yaml.load(config_fh)
+        data_config = yaml.load(config_fh, Loader=yaml.FullLoader)
         data_root = data_config['data_root']
         if not os.path.isabs(data_root):
             # relative to the data config file

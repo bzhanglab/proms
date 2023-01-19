@@ -614,7 +614,7 @@ def check_data_config(config_file):
     verify data configuration file
     """
     with open(config_file) as config_fh:
-        data_config = yaml.load(config_fh)
+        data_config = yaml.load(config_fh, Loader=yaml.FullLoader)
 
     required_fields = {'project_name', 'data_directory', 'train_data_directory', 'target_view',
                        'target_label', 'data'}
@@ -648,7 +648,7 @@ def create_dataset(config_file, output_run):
     print(f'data config file: {config_file}')
     check_data_config(config_file)
     with open(config_file) as config_fh:
-        data_config = yaml.load(config_fh)
+        data_config = yaml.load(config_fh, Loader=yaml.FullLoader)
         data_root = data_config['data_directory']
         if not os.path.isabs(data_root):
             # relative to the data config file
@@ -662,7 +662,7 @@ def create_dataset(config_file, output_run):
 
 def check_run_config(run_config_file, n_train_sample, prediction_type):
     with open(run_config_file) as config_fh:
-        run_config = yaml.load(config_fh)
+        run_config = yaml.load(config_fh, Loader=yaml.FullLoader)
         if not 'n_jobs' in run_config:
             # assume running on a node with 4 cpus
             run_config['n_jobs'] = 4
