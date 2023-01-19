@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-__version__ = '1.0.10'
+__version__ = '1.0.11'
 url = 'https://github.com/bzhanglab/proms'
 
 install_requires = [
