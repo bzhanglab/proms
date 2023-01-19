@@ -298,7 +298,7 @@ class ProMS_mo(FeatureSelBase):
         if self.weighted:
             feature_scores = np.array([], dtype=np.float64)
 
-        candidacy = np.array([], dtype=np.bool)
+        candidacy = np.array([], dtype=bool)
 
         for i in self.all_view_data:
             X = self.all_view_data[i]['X']

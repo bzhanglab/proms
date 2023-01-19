@@ -300,7 +300,7 @@ def get_y(y_df, prediction_type):
     if prediction_type == 'sur':
         col_event = y_df.columns[0]
         col_time = y_df.columns[1]
-        y = np.empty(dtype=[(col_event, np.bool), (col_time, np.float64)],
+        y = np.empty(dtype=[(col_event, bool), (col_time, np.float64)],
                     shape=y_df.shape[0])
         y[col_event] = (y_df[col_event] == 1).values
         y[col_time] = y_df[col_time].values

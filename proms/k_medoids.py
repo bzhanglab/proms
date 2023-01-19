@@ -182,8 +182,8 @@ class KMedoids(BaseEstimator, ClusterMixin, TransformerMixin):
                                  .format(candidacy.shape, (n_samples,)))
 
             if np.issubdtype(candidacy.dtype, np.integer):
-                candidacy = candidacy.astype(np.bool)
-            elif candidacy.dtype != np.bool:
+                candidacy = candidacy.astype(bool)
+            elif candidacy.dtype != bool:
                 raise TypeError('candidacy type must be integer or bool')
 
         return candidacy

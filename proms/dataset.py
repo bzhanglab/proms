@@ -115,7 +115,7 @@ class Dataset(Data):
         clin_data = pd.read_csv(clin_file, sep='\t', index_col=0)
         col_event = target_label[0]
         col_time = target_label[1]
-        y = np.empty(dtype=[(col_event, np.bool), (col_time, np.float64)],
+        y = np.empty(dtype=[(col_event, bool), (col_time, np.float64)],
                      shape=clin_data.shape[0])
         y[col_event] = (clin_data[col_event] == 1).values
         y[col_time] = clin_data[col_time].values
