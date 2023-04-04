@@ -189,7 +189,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         if self.selected_features is not None:
-            return X.loc[:, self.selected_features]
+            return X.reindex(columns=self.selected_features)
         else:  # for pca_ex only
             ptn = re.compile(r'^{}_'.format(self.target_view))
             cur_view_features = [i for i in self.all_features
